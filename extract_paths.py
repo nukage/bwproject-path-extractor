@@ -83,6 +83,65 @@ def extract_from_buffer(content, extensions):
             
     return found
 
+def extract_from_project(target_file):
+    audio_exts = ['wav', 'mp3', 'flac', 'ogg', 'aif', 'aiff']
+    all_paths = set()
+    
+    if not os.path.exists(target_file):
+        return None
+
+    with open(target_file, "rb") as f:
+        content = f.read()
+    all_paths.update(extract_from_buffer(content, audio_exts))
+
+    try:
+        with zipfile.ZipFile(target_file, 'r') as z:
+            for name in z.namelist():
+                try:
+                    with z.open(name) as member:
+                        all_paths.update(extract_from_buffer(member.read(), audio_exts))
+                except: continue
+    except: pass
+    
+    return sorted(list(all_paths))
+
+def check_existence(paths, project_dir):
+    missing_paths = []
+    found_paths = []
+    
+    for p in paths:
+        exists = False
+        clean_p = p
+        
+        # Handle file:///
+        if p.startswith('file:///'):
+            clean_p = urllib.parse.unquote(p[8:])
+            if clean_p.startswith('/') and clean_p[2] == ':': # /C:/...
+                clean_p = clean_p[1:]
+            clean_p = clean_p.replace('/', os.sep)
+        
+        # Try as absolute path
+        if os.path.exists(clean_p):
+            exists = True
+        else:
+            # Try as relative path to project dir
+            rel_p = os.path.join(project_dir, clean_p)
+            if os.path.exists(rel_p):
+                exists = True
+            else:
+                # Bitwig sometimes uses / instead of \ even on Windows, or just filenames
+                simple_p = clean_p.lstrip('/\\')
+                rel_p2 = os.path.join(project_dir, simple_p)
+                if os.path.exists(rel_p2):
+                    exists = True
+        
+        if not exists:
+            missing_paths.append(p)
+        else:
+            found_paths.append(p)
+            
+    return found_paths, missing_paths
+
 def main():
     parser = argparse.ArgumentParser(description="Extract sample paths from a Bitwig .bwproject file.")
     parser.add_argument("project_file", help="Path to the .bwproject file")
@@ -97,75 +156,34 @@ def main():
     args = parser.parse_args()
     target_file = os.path.abspath(args.project_file)
     project_dir = os.path.dirname(target_file)
-    audio_exts = ['wav', 'mp3', 'flac', 'ogg', 'aif', 'aiff']
-    all_paths = set()
     
-    if not os.path.exists(target_file):
+    print(f"Scanning: {target_file}...")
+    sorted_paths = extract_from_project(target_file)
+    
+    if sorted_paths is None:
         print(f"Error: {target_file} not found.")
         return
 
-    print(f"Scanning: {target_file}...")
-    
-    with open(target_file, "rb") as f:
-        content = f.read()
-    all_paths.update(extract_from_buffer(content, audio_exts))
-
-    try:
-        with zipfile.ZipFile(target_file, 'r') as z:
-            for name in z.namelist():
-                try:
-                    with z.open(name) as member:
-                        all_paths.update(extract_from_buffer(member.read(), audio_exts))
-                except: continue
-    except: pass
-
-    sorted_paths = sorted(list(all_paths))
     with open(args.output, "w", encoding="utf-8") as f:
         for p in sorted_paths:
             f.write(p + "\n")
             
-    print(f"Done! Extracted {len(all_paths)} unique paths to {args.output}")
+    print(f"Done! Extracted {len(sorted_paths)} unique paths to {args.output}")
 
     if args.check:
         print("Checking file existence...")
-        missing_paths = []
-        for p in sorted_paths:
-            exists = False
-            clean_p = p
-            
-            # Handle file:///
-            if p.startswith('file:///'):
-                clean_p = urllib.parse.unquote(p[8:])
-                if clean_p.startswith('/') and clean_p[2] == ':': # /C:/...
-                    clean_p = clean_p[1:]
-                clean_p = clean_p.replace('/', os.sep)
-            
-            # Try as absolute path
-            if os.path.exists(clean_p):
-                exists = True
-            else:
-                # Try as relative path to project dir
-                rel_p = os.path.join(project_dir, clean_p)
-                if os.path.exists(rel_p):
-                    exists = True
-                else:
-                    # Bitwig sometimes uses / instead of \ even on Windows, or just filenames
-                    # If it's just a filename or a simple relative path
-                    simple_p = clean_p.lstrip('/\\')
-                    rel_p2 = os.path.join(project_dir, simple_p)
-                    if os.path.exists(rel_p2):
-                        exists = True
-            
-            if not exists:
-                missing_paths.append(p)
+        found, missing = check_existence(sorted_paths, project_dir)
         
-        if missing_paths:
+        if missing:
             with open(args.missing, "w", encoding="utf-8") as f:
-                for p in missing_paths:
+                for p in missing:
                     f.write(p + "\n")
-            print(f"Found {len(missing_paths)} missing files. Saved to {args.missing}")
+            print(f"Found {len(missing)} missing files. Saved to {args.missing}")
         else:
             print("All extracted files found on system!")
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()

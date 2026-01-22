@@ -21,7 +21,7 @@ def main(page: ft.Page):
 
     # --- UI Elements ---
     
-    status_text = ft.Text("Drag and drop a .bwproject file here", size=16, color=ft.Colors.GREY_400)
+    status_text = ft.Text("Select a .bwproject file to begin", size=16, color=ft.Colors.GREY_400)
     
     missing_check = ft.Checkbox(label="Perform missing file scan", value=True)
     txt_check = ft.Checkbox(label="Generate .txt output", value=True)
@@ -210,7 +210,7 @@ def main(page: ft.Page):
         all_results = []
         generated_txt_path = None
         generated_html_path = None
-        status_text.value = "Drag and drop a .bwproject file here"
+        status_text.value = "Select a .bwproject file to begin"
         status_text.color = ft.Colors.GREY_400
         results_list.controls.clear()
         open_html_btn.visible = False
@@ -224,32 +224,29 @@ def main(page: ft.Page):
     
     search_field.on_change = lambda e: filter_results(e.control.value)
 
-    def on_drag_over(e):
+    def on_hover(e):
         if not drop_zone.disabled:
-            drop_zone.content.border = ft.border.all(2, ft.Colors.BLUE_400)
-            page.update()
-
-    def on_drag_leave(e):
-        if not drop_zone.disabled:
-            drop_zone.content.border = ft.border.all(2, ft.Colors.GREY_700)
+            drop_zone.content.border = ft.border.all(2, ft.Colors.BLUE_400 if e.data == "true" else ft.Colors.GREY_700)
+            drop_zone.content.bgcolor = ft.Colors.WHITE10 if e.data == "true" else ft.Colors.BLACK12
             page.update()
 
     drop_zone = ft.GestureDetector(
         content=ft.Container(
             content=ft.Column([
-                ft.Icon(ft.Icons.UPLOAD_FILE, size=50, color=ft.Colors.BLUE_400),
+                ft.Icon(ft.Icons.FILE_OPEN_ROUNDED, size=50, color=ft.Colors.BLUE_400),
                 status_text,
-                ft.TextButton("Or click to select file", on_click=lambda _: file_picker.pick_files(allowed_extensions=["bwproject"]))
+                ft.Text("(Click to select)", size=12, color=ft.Colors.GREY_500),
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             width=float("inf"),
             height=200,
             border=ft.border.all(2, ft.Colors.GREY_700),
             border_radius=10,
             bgcolor=ft.Colors.BLACK12,
+            animate=ft.animation.Animation(300, ft.AnimationCurve.DECELERATE),
         ),
+        mouse_cursor=ft.MouseCursor.CLICK,
         on_tap=lambda _: file_picker.pick_files(allowed_extensions=["bwproject"]),
-        on_enter=on_drag_over,
-        on_exit=on_drag_leave,
+        on_hover=on_hover,
     )
 
     page.add(

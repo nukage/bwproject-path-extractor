@@ -109,6 +109,21 @@ def check_existence(paths, project_dir):
     missing_paths = []
     found_paths = []
     
+    def check_path(path):
+        # Try the path as-is first
+        if os.path.exists(path):
+            return True
+            
+        # Handle .aif <-> .aiff variations
+        base, ext = os.path.splitext(path.lower())
+        if ext in ['.aif', '.aiff']:
+            alt_ext = '.aiff' if ext == '.aif' else '.aif'
+            alt_path = f"{base}{alt_ext}"
+            if os.path.exists(alt_path):
+                return True
+                
+        return False
+    
     for p in paths:
         exists = False
         clean_p = p
@@ -116,23 +131,23 @@ def check_existence(paths, project_dir):
         # Handle file:///
         if p.startswith('file:///'):
             clean_p = urllib.parse.unquote(p[8:])
-            if clean_p.startswith('/') and clean_p[2] == ':': # /C:/...
+            if clean_p.startswith('/') and len(clean_p) > 2 and clean_p[2] == ':': # /C:/...
                 clean_p = clean_p[1:]
             clean_p = clean_p.replace('/', os.sep)
         
         # Try as absolute path
-        if os.path.exists(clean_p):
+        if check_path(clean_p):
             exists = True
         else:
             # Try as relative path to project dir
             rel_p = os.path.join(project_dir, clean_p)
-            if os.path.exists(rel_p):
+            if check_path(rel_p):
                 exists = True
             else:
                 # Bitwig sometimes uses / instead of \ even on Windows, or just filenames
                 simple_p = clean_p.lstrip('/\\')
                 rel_p2 = os.path.join(project_dir, simple_p)
-                if os.path.exists(rel_p2):
+                if check_path(rel_p2):
                     exists = True
         
         if not exists:

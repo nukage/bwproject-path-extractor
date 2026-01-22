@@ -5,7 +5,7 @@ A utility to extract and audit audio sample file paths from Bitwig Studio `.bwpr
 ## Features
 
 - **GUI Interface**: Modern, easy-to-use desktop application.
-- **Drag & Drop**: Simply drop your `.bwproject` file to start auditing.
+- **File Picker**: Use the file picker to select your `.bwproject` file to start auditing.
 - **Existence Check**: Scans your disk to verify if samples are actually where the project thinks they are.
 - **Search & Filter**: Quickly find specific samples or filter by status (Found/Missing).
 - **Multiple Exports**:

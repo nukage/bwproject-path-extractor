@@ -21,7 +21,7 @@ def main(page: ft.Page):
 
     # --- UI Elements ---
     
-    status_text = ft.Text("Drag and drop a .bwproject file here", size=16, color=ft.Colors.GREY_400)
+    status_text = ft.Text("Select a .bwproject file to begin", size=16, color=ft.Colors.GREY_400)
     
     missing_check = ft.Checkbox(label="Perform missing file scan", value=True)
     txt_check = ft.Checkbox(label="Generate .txt output", value=True)
@@ -36,6 +36,12 @@ def main(page: ft.Page):
     )
 
     results_list = ft.ListView(expand=1, spacing=10, padding=10)
+    
+    select_file_btn = ft.ElevatedButton(
+        "Select .bwproject File",
+        icon=ft.Icons.FILE_OPEN,
+        on_click=lambda _: file_picker.pick_files(allowed_extensions=["bwproject"])
+    )
     
     def open_file(file_path):
         if file_path and os.path.exists(file_path):
@@ -81,7 +87,7 @@ def main(page: ft.Page):
         missing_check.disabled = True
         txt_check.disabled = True
         html_check.disabled = True
-        drop_zone.disabled = True
+        select_file_btn.disabled = True
         
         page.update()
 
@@ -135,7 +141,7 @@ def main(page: ft.Page):
             missing_check.disabled = False
             txt_check.disabled = False
             html_check.disabled = False
-            drop_zone.disabled = False
+            select_file_btn.disabled = False
             page.update()
 
         threading.Thread(target=extraction_task, daemon=True).start()
@@ -210,7 +216,7 @@ def main(page: ft.Page):
         all_results = []
         generated_txt_path = None
         generated_html_path = None
-        status_text.value = "Drag and drop a .bwproject file here"
+        status_text.value = "Select a .bwproject file to begin"
         status_text.color = ft.Colors.GREY_400
         results_list.controls.clear()
         open_html_btn.visible = False
@@ -224,40 +230,22 @@ def main(page: ft.Page):
     
     search_field.on_change = lambda e: filter_results(e.control.value)
 
-    def on_drag_over(e):
-        if not drop_zone.disabled:
-            drop_zone.content.border = ft.border.all(2, ft.Colors.BLUE_400)
-            page.update()
-
-    def on_drag_leave(e):
-        if not drop_zone.disabled:
-            drop_zone.content.border = ft.border.all(2, ft.Colors.GREY_700)
-            page.update()
-
-    drop_zone = ft.GestureDetector(
-        content=ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.UPLOAD_FILE, size=50, color=ft.Colors.BLUE_400),
-                status_text,
-                ft.TextButton("Or click to select file", on_click=lambda _: file_picker.pick_files(allowed_extensions=["bwproject"]))
-            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            width=float("inf"),
-            height=200,
-            border=ft.border.all(2, ft.Colors.GREY_700),
-            border_radius=10,
-            bgcolor=ft.Colors.BLACK12,
-        ),
-        on_tap=lambda _: file_picker.pick_files(allowed_extensions=["bwproject"]),
-        on_enter=on_drag_over,
-        on_exit=on_drag_leave,
-    )
-
     page.add(
         ft.Column([
             ft.Text("Bitwig Project Sample Audit", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_200),
             ft.Text("Quickly find and verify audio files used in your Bitwig project.", size=14, color=ft.Colors.GREY_500),
             ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
-            drop_zone,
+            ft.Container(
+                content=ft.Column([
+                    select_file_btn,
+                    ft.Container(height=10),
+                    status_text
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=20,
+                border=ft.border.all(1, ft.Colors.GREY_800),
+                border_radius=5,
+                width=float("inf"),
+            ),
             ft.Row([
                 missing_check,
                 txt_check,
